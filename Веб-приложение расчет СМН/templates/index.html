@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор соотношения матрица-наполнитель</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 23px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        td {
+            padding: 10px;
+        }
+        td:first-child {
+            font-weight: bold;
+            width: 60%;
+            color: #555;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+            border-radius: 4px;
+            display: none;
+        }
+        .result.show {
+            display: block;
+        }
+        .result h3 {
+            margin: 0 0 10px 0;
+            color: #2e7d32;
+        }
+        .prediction-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1b5e20;
+        }
+        .error {
+            background-color: #ffebee;
+            border-left-color: #f44336;
+        }
+        .error h3 {
+            color: #c62828;
+        }
+        .loader {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .loader.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>&#129518;📈📉📊 Введите значения показателей для расчета соотношения матрица-наполнитель</h1>
+
+        <form id="predictionForm">
+            <table>
+                <tr>
+                    <td>Параметр 1. Прочность при растяжении, МПа:</td>
+                    <td><input type="number" name="input1" step="any" required></td>
+                </tr>
+                <tr>
+                    <td>Параметр 2. Модуль упругости при растяжении, ГПа:</td>
+                    <td><input type="number" name="input2" step="any" required></td>
+                </tr>
+                <tr>
+                    <td>Параметр 3. Количество отвердителя, м.%:</td>
+                    <td><input type="number" name="input3" step="any" required></td>
+                </tr>
+                <tr>
+                    <td>Параметр 4. Плотность, кг/м3:</td>
+                    <td><input type="number" name="input4" step="any" required></td>
+                </tr>
+                <tr>
+                    <td>Параметр 5. Поверхностная плотность, г/м2:</td>
+                    <td><input type="number" name="input5" step="any" required></td>
+                </tr>
+                <tr>
+                    <td>Параметр 6. Содержание эпоксидных групп,%_2:</td>
+                    <td><input type="number" name="input6" step="any" required></td>
+                </tr>
+                <tr>
+                    <td>Параметр 7. Угол нашивки, град (от 0 до 90):</td>
+                    <td><input type="number" name="input7" step="any" required></td>
+                </tr>
+                <tr>
+                    <td>Параметр 8. Плотность нашивки:</td>
+                    <td><input type="number" name="input8" step="any" required></td>
+                </tr>
+            </table>
+
+            <button type="submit" id="submitBtn">Получить прогнозное значение</button>
+        </form>
+
+        <div class="loader" id="loader">
+            <p>⏳ Вычисление...</p>
+        </div>
+
+        <div class="result" id="result">
+            <h3>Результат расчета:</h3>
+            <div class="prediction-value" id="predictionValue">-</div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('predictionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const loader = document.getElementById('loader');
+            const resultDiv = document.getElementById('result');
+            const predictionValue = document.getElementById('predictionValue');
+
+            // Собираем данные из формы
+            const formData = new FormData(this);
+            const inputs = [];
+            for (let i = 1; i <= 8; i++) {
+                inputs.push(formData.get(`input${i}`));
+            }
+
+            // Показываем загрузку
+            submitBtn.disabled = true;
+            loader.classList.add('show');
+            resultDiv.classList.remove('show');
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ inputs: inputs })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    predictionValue.textContent = data.prediction.toFixed(4);
+                    resultDiv.classList.remove('error');
+                    resultDiv.classList.add('show');
+                } else {
+                    predictionValue.textContent = 'Ошибка: ' + data.error;
+                    resultDiv.classList.add('error');
+                    resultDiv.classList.add('show');
+                }
+            } catch (error) {
+                predictionValue.textContent = 'Ошибка связи с сервером';
+                resultDiv.classList.add('error');
+                resultDiv.classList.add('show');
+            } finally {
+                submitBtn.disabled = false;
+                loader.classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
